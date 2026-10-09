@@ -3,11 +3,15 @@ const { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync } = require("
 const { spawnSync } = require("node:child_process");
 const { basename, join } = require("node:path");
 
+// replaced by somthing to read in the json 
 const testJson = {
     "grading": [
         {
+            // A label used when reporting this grading result.
             "name": "test1",
+            // The shell command whose exit code determines the score.
             "command": "cat abc.txt",
+            // Map command exit codes to the points awarded.
             "codes": {
                 "0": 5, // "exitCode":points
                 "1": 0,
@@ -15,16 +19,22 @@ const testJson = {
             }
         },
         {
+            // Name shown for this grading check.
             "name": "test2",
+            // Command to run for this check.
             "command": "cat abc2.txt",
+            // Award 1 point on success and 0 points on exit code 1.
             "codes": {
                 "0": 1,
                 "1": 0
             }
         },
         {
+            // Name shown for this grading check.
             "name": "test3",
+            // Command to run for this check.
             "command": "cat abc3.txt",
+            // Associate each possible exit code with its score.
             "codes": {
                 "0": 4,
                 "1": 2,
@@ -32,29 +42,36 @@ const testJson = {
             }
         },
         {
+            // Name shown for the Python grading check.
             "name": "test Python run",
+            // Run the main.py file copied from the overlay.
             "command": "python main.py",
+            // Award points based on the Python process exit code.
             "codes": {
-                "TEst": 5,
-                "": 2,
+                "0": 5,
+                "1": 0,
             }
         }
     ],
+    // Overlay URLs may be normal Git URLs or GitHub paths ending in /<overlay>@<branch>.
     "overlays": [
         "https://github.com/WeicJa210116/ForgejoTestActions/overlays/testOverlay@overlays",
         //"https://athene-forgejo.gametec-live.com/litec-grading/overlay2.git"
     ]
 };
 
-
+// Store cloned overlays in an overlays folder under the current working directory.
 const overlayRoot = join(process.cwd(), "overlays");
+// Create the overlays folder if it does not already exist.
 mkdirSync(overlayRoot, { recursive: true });
 
+// Convert an overlay URL into its Git URL, branch, and optional subdirectory.
 function parseOverlayUrl(overlayUrl) {
     const url = new URL(overlayUrl);
     const pathSegments = url.pathname.split("/").filter(Boolean);
     const lastSegment = pathSegments.at(-1) ?? "";
 
+    // Leave non-GitHub URLs and GitHub URLs without the /<name>@<branch> suffix unchanged.
     if (url.hostname.toLowerCase() !== "github.com" || !lastSegment.includes("@")) {
         return {
             repoName: basename(url.pathname).replace(/\.git$/, ""),
@@ -78,6 +95,7 @@ function parseOverlayUrl(overlayUrl) {
         throw new Error(`Invalid overlay subdirectory in URL: ${overlayUrl}`);
     }
 
+    // Rewrite the URL path to the actual GitHub repository's clone URL.
     url.pathname = `/${pathSegments.slice(0, 2).join("/")}.git`;
     url.search = "";
     url.hash = "";
@@ -90,11 +108,14 @@ function parseOverlayUrl(overlayUrl) {
     };
 }
 
+// Run a Git command, forward its output, and stop if Git reports a failure.
 function runGit(args, overlayName) {
     const result = spawnSync("git", args, { encoding: "utf8" });
+    // Print Git's standard output when it produced any.
     if (result.stdout) process.stdout.write(result.stdout);
     if (result.stderr) process.stderr.write(result.stderr);
 
+    // Report spawn errors or non-zero Git exit codes and fail the action.
     if (result.error || result.status !== 0) {
         console.error(`Failed to prepare overlay ${overlayName}: ${result.error?.message ?? `git exited with status ${result.status}`}`);
         process.exit(result.status ?? 1);
@@ -105,6 +126,7 @@ for (const overlayUrl of testJson.overlays) {
     const { repoName, gitUrl, branch, subdirectory } = parseOverlayUrl(overlayUrl);
     const overlayPath = join(overlayRoot, repoName);
 
+    // Refuse to use an existing destination unless it is already a Git repository.
     if (existsSync(overlayPath) && !existsSync(join(overlayPath, ".git"))) {
         console.error(`Overlay destination exists but is not a Git repository: ${overlayPath}`);
         process.exit(1);
@@ -138,7 +160,6 @@ for (const overlayUrl of testJson.overlays) {
     }
 }
 
-
 let totalPoints = 0;
 
 for (const test of testJson.grading) {
@@ -157,6 +178,7 @@ for (const test of testJson.grading) {
     console.log(`${test.name}: exit code ${exitCode}, points ${points}`);
 }
 
+// print final score
 console.log(`points=${totalPoints}`);
 if (process.env.FORGEJO_OUTPUT) {
     appendFileSync(process.env.FORGEJO_OUTPUT, `points=${totalPoints}\n`);
