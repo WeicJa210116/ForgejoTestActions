@@ -30,10 +30,18 @@ const testJson = {
                 "1": 2,
                 "7": 3
             }
+        },
+        {
+            "name": "test Python run",
+            "command": "python ./main.py",
+            "codes": {
+                "TEst": 5,
+                "": 2,
+            }
         }
     ],
     "overlays": [
-        "https://github.com/github-samples/planventure",
+        "https://github.com/WeicJa210116/ForgejoTestActions/overlays/testOverlay@overlays",
         //"https://athene-forgejo.gametec-live.com/litec-grading/overlay2.git"
     ]
 };
@@ -82,6 +90,8 @@ for (const test of testJson.grading) {
     totalPoints += points;
     console.log(`${test.name}: exit code ${exitCode}, points ${points}`);
 }
+
+await
 
 console.log(`points=${totalPoints}`);
 if (process.env.FORGEJO_OUTPUT) {
