@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { appendFileSync, existsSync, mkdirSync } = require("node:fs");
+const { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync } = require("node:fs");
 const { spawnSync } = require("node:child_process");
 const { basename, join } = require("node:path");
 
@@ -121,6 +121,20 @@ for (const overlayUrl of testJson.overlays) {
 
     if (subdirectory) {
         runGit(["-C", overlayPath, "sparse-checkout", "set", "--cone", subdirectory], repoName);
+    }
+
+    const overlayContentsPath = subdirectory ? join(overlayPath, subdirectory) : overlayPath;
+    if (!existsSync(overlayContentsPath)) {
+        console.error(`Overlay contents not found: ${overlayContentsPath}`);
+        process.exit(1);
+    }
+
+    for (const entry of readdirSync(overlayContentsPath)) {
+        if (entry === ".git") continue;
+        cpSync(join(overlayContentsPath, entry), join(process.cwd(), entry), {
+            recursive: true,
+            force: true,
+        });
     }
 }
 

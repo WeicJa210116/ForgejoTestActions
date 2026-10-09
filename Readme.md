@@ -8,6 +8,3 @@ repository, append its repository-relative path and `@<branch>`, for example:
 ```text
 https://github.com/WeicJa210116/ForgejoTestActions/overlays/testOverlay@overlays
 ```
-
-This clones the `overlays` branch and sparsely checks out
-`overlays/testOverlay` under `overlays/testOverlay/`.
