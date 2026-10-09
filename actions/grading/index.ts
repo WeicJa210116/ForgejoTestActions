@@ -3,15 +3,13 @@ const { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync } = require("
 const { spawnSync } = require("node:child_process");
 const { basename, join } = require("node:path");
 
-// replaced by somthing to read in the json 
+// replaced by somthing to read in  json 
 const testJson = {
+
     "grading": [
         {
-            // A label used when reporting this grading result.
             "name": "test1",
-            // The shell command whose exit code determines the score.
             "command": "cat abc.txt",
-            // Map command exit codes to the points awarded.
             "codes": {
                 "0": 5, // "exitCode":points
                 "1": 0,
@@ -19,22 +17,16 @@ const testJson = {
             }
         },
         {
-            // Name shown for this grading check.
             "name": "test2",
-            // Command to run for this check.
             "command": "cat abc2.txt",
-            // Award 1 point on success and 0 points on exit code 1.
             "codes": {
                 "0": 1,
                 "1": 0
             }
         },
         {
-            // Name shown for this grading check.
             "name": "test3",
-            // Command to run for this check.
             "command": "cat abc3.txt",
-            // Associate each possible exit code with its score.
             "codes": {
                 "0": 4,
                 "1": 2,
@@ -42,11 +34,8 @@ const testJson = {
             }
         },
         {
-            // Name shown for the Python grading check.
             "name": "test Python run",
-            // Run the main.py file copied from the overlay.
             "command": "python main.py",
-            // Award points based on the Python process exit code.
             "codes": {
                 "0": 5,
                 "1": 0,
@@ -60,9 +49,7 @@ const testJson = {
     ]
 };
 
-// Store cloned overlays in an overlays folder under the current working directory.
 const overlayRoot = join(process.cwd(), "overlays");
-// Create the overlays folder if it does not already exist.
 mkdirSync(overlayRoot, { recursive: true });
 
 // Convert an overlay URL into its Git URL, branch, and optional subdirectory.

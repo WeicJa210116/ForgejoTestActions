@@ -1,29 +1,11 @@
-inputs:
-  input-one:
-    default: 'one'
-    description: 'description one'
-  input-two-required:
-    description: 'description two'
-    required: true
 outputs:
-  key:
-    description: 'output value'
-    value: "${{ steps.one.outputs.key }}"
   points:
-    description: 'points returned when the command succeeds'
+    description: Points returned by the grading script
     value: "${{ steps.test-json.outputs.points }}"
 
 runs:
-  using: "composite"
+  using: composite
   steps:
-    - name: FORGEJO_ACTION_PATH
-      run: |
-        set -x
-        test -e "$FORGEJO_ACTION_PATH"
-        test "$FORGEJO_ACTION_PATH" = "${{ env.FORGEJO_ACTION_PATH }}"
-      shell: bash
-
     - id: test-json
       run: node < "$FORGEJO_ACTION_PATH/index.ts"
       shell: bash
-
