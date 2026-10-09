@@ -33,7 +33,7 @@ const testJson = {
         },
         {
             "name": "test Python run",
-            "command": "python ./main.py",
+            "command": "python main.py",
             "codes": {
                 "TEst": 5,
                 "": 2,
