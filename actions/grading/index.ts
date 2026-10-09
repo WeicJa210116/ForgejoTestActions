@@ -50,25 +50,77 @@ const testJson = {
 const overlayRoot = join(process.cwd(), "overlays");
 mkdirSync(overlayRoot, { recursive: true });
 
+function parseOverlayUrl(overlayUrl) {
+    const url = new URL(overlayUrl);
+    const pathSegments = url.pathname.split("/").filter(Boolean);
+    const lastSegment = pathSegments.at(-1) ?? "";
+
+    if (url.hostname.toLowerCase() !== "github.com" || !lastSegment.includes("@")) {
+        return {
+            repoName: basename(url.pathname).replace(/\.git$/, ""),
+            gitUrl: overlayUrl,
+            branch: undefined,
+            subdirectory: undefined,
+        };
+    }
+
+    const branchSeparator = lastSegment.lastIndexOf("@");
+    const branch = decodeURIComponent(lastSegment.slice(branchSeparator + 1));
+    const overlayName = decodeURIComponent(lastSegment.slice(0, branchSeparator));
+    const subdirectorySegments = pathSegments.slice(2, -1).concat(overlayName);
+
+    if (pathSegments.length < 3 || !branch || !overlayName) {
+        throw new Error(`Invalid GitHub overlay URL: ${overlayUrl}`);
+    }
+
+    const decodedSubdirectorySegments = subdirectorySegments.map(decodeURIComponent);
+    if (decodedSubdirectorySegments.some(segment => segment === "." || segment === ".." || segment.includes("/"))) {
+        throw new Error(`Invalid overlay subdirectory in URL: ${overlayUrl}`);
+    }
+
+    url.pathname = `/${pathSegments.slice(0, 2).join("/")}.git`;
+    url.search = "";
+    url.hash = "";
+
+    return {
+        repoName: overlayName,
+        gitUrl: url.toString(),
+        branch,
+        subdirectory: decodedSubdirectorySegments.join("/"),
+    };
+}
+
+function runGit(args, overlayName) {
+    const result = spawnSync("git", args, { encoding: "utf8" });
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+
+    if (result.error || result.status !== 0) {
+        console.error(`Failed to prepare overlay ${overlayName}: ${result.error?.message ?? `git exited with status ${result.status}`}`);
+        process.exit(result.status ?? 1);
+    }
+}
+
 for (const overlayUrl of testJson.overlays) {
-    const repoName = basename(new URL(overlayUrl).pathname).replace(/\.git$/, "");
+    const { repoName, gitUrl, branch, subdirectory } = parseOverlayUrl(overlayUrl);
     const overlayPath = join(overlayRoot, repoName);
-    const gitArgs = existsSync(overlayPath)
-        ? ["-C", overlayPath, "pull", "--ff-only"]
-        : ["clone", "--depth", "1", "--", overlayUrl, overlayPath];
 
     if (existsSync(overlayPath) && !existsSync(join(overlayPath, ".git"))) {
         console.error(`Overlay destination exists but is not a Git repository: ${overlayPath}`);
         process.exit(1);
     }
 
-    const result = spawnSync("git", gitArgs, { encoding: "utf8" });
-    if (result.stdout) process.stdout.write(result.stdout);
-    if (result.stderr) process.stderr.write(result.stderr);
+    if (existsSync(overlayPath)) {
+        runGit(["-C", overlayPath, "pull", "--ff-only"], repoName);
+    } else {
+        const cloneArgs = ["clone", "--depth", "1"];
+        if (branch) cloneArgs.push("--branch", branch, "--sparse");
+        cloneArgs.push("--", gitUrl, overlayPath);
+        runGit(cloneArgs, repoName);
+    }
 
-    if (result.error || result.status !== 0) {
-        console.error(`Failed to prepare overlay ${repoName}: ${result.error?.message ?? `git exited with status ${result.status}`}`);
-        process.exit(result.status ?? 1);
+    if (subdirectory) {
+        runGit(["-C", overlayPath, "sparse-checkout", "set", "--cone", subdirectory], repoName);
     }
 }
 
@@ -90,8 +142,6 @@ for (const test of testJson.grading) {
     totalPoints += points;
     console.log(`${test.name}: exit code ${exitCode}, points ${points}`);
 }
-
-await
 
 console.log(`points=${totalPoints}`);
 if (process.env.FORGEJO_OUTPUT) {
